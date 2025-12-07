@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAM3 + SAM3D - 3D Object Generator</title>
+
+    <!-- Three.js and related libraries -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #888;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 1000px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel h2 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel h2::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border-radius: 2px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .upload-area.has-image {
+            padding: 10px;
+        }
+
+        .upload-area img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            color: #aaa;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        /* Generate Button */
+        .generate-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .generate-btn .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Status Messages */
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.error {
+            background: rgba(255, 82, 82, 0.2);
+            border: 1px solid rgba(255, 82, 82, 0.5);
+            color: #ff5252;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #4caf50;
+        }
+
+        .status.info {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+
+        /* 3D Preview */
+        .viewer-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: #0a0a0a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        #viewer-canvas {
+            width: 100%;
+            height: 100%;
+            display: none;
+            touch-action: none; /* Prevent browser gestures from interfering */
+        }
+
+        #viewer-canvas.active {
+            display: block;
+        }
+
+        .viewer-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #555;
+        }
+
+        .viewer-placeholder svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .viewer-info {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 12px;
+            color: #666;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none; /* Don't block canvas interactions */
+        }
+
+        /* Viewer Controls */
+        .viewer-controls {
+            display: none;
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+
+        .viewer-controls.show {
+            display: flex;
+        }
+
+        .viewer-controls button {
+            padding: 8px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .viewer-controls button:hover {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+        }
+
+        .viewer-controls button.active {
+            background: rgba(0, 212, 255, 0.5);
+            border-color: #00d4ff;
+        }
+
+        /* Results Panel */
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .result-item span {
+            color: #aaa;
+        }
+
+        .result-item .download-links {
+            display: flex;
+            gap: 10px;
+        }
+
+        .result-item a {
+            color: #00d4ff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            padding: 4px 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .result-item a:hover {
+            color: #fff;
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        /* Mask Preview */
+        .mask-preview {
+            margin-top: 20px;
+        }
+
+        .mask-preview img {
+            max-width: 100%;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mask-preview h3 {
+            font-size: 1em;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10;
+            pointer-events: none; /* Default: allow clicks through when hidden */
+        }
+
+        .loading-overlay.show {
+            display: flex;
+            pointer-events: auto; /* Block clicks when showing */
+        }
+
+        .loading-overlay .spinner-large {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        .result-summary {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .result-objects {
+            margin-top: 15px;
+        }
+
+        .result-objects h4 {
+            color: #aaa;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SAM3 + SAM3D</h1>
+            <p>Generate 3D objects from images using text prompts</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Input Panel -->
+            <div class="panel">
+                <h2>Input</h2>
+
+                <!-- Image Upload -->
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">&#128247;</div>
+                    <div class="upload-text">
+                        <p>Drag & drop an image here</p>
+                        <p style="margin-top: 5px; font-size: 0.9em;">or click to browse</p>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept="image/*">
+
+                <!-- Text Prompt -->
+                <div class="form-group">
+                    <label for="text-prompt">Object Description</label>
+                    <input type="text" id="text-prompt" placeholder='e.g., "coffee mug", "red car", "wooden chair"'>
+                </div>
+
+                <!-- Seed -->
+                <div class="form-group">
+                    <label for="seed">Random Seed (optional)</label>
+                    <input type="number" id="seed" value="42" placeholder="42">
+                </div>
+
+                <!-- Max Objects -->
+                <div class="form-group">
+                    <label for="max-objects">Max Objects (1-100)</label>
+                    <input type="number" id="max-objects" value="50" min="1" max="100" placeholder="50">
+                </div>
+
+                <!-- Generate Button -->
+                <button class="generate-btn" id="generate-btn">
+                    <span class="btn-text">Generate 3D Model</span>
+                </button>
+
+                <!-- Status -->
+                <div class="status" id="status"></div>
+
+                <!-- Results -->
+                <div class="results" id="results">
+                    <h3 style="margin-bottom: 15px; color: #fff;">Generated Files</h3>
+                    <div class="result-summary" id="result-summary" style="display: none;">
+                        <span style="color: #00d4ff; font-weight: 500;"></span>
+                    </div>
+                    <div class="result-item" id="result-glb" style="display: none;">
+                        <span>3D Model (GLB - Textured)</span>
+                        <div class="download-links">
+                            <a href="#" download>Download GLB</a>
+                        </div>
+                    </div>
+                    <div class="result-item" id="result-obj" style="display: none;">
+                        <span>3D Model (OBJ)</span>
+                        <div class="download-links">
+                            <a href="#" download>Download OBJ</a>
+                        </div>
+                    </div>
+                    <div class="result-item" id="result-ply" style="display: none;">
+                        <span>Gaussian Splatting (PLY)</span>
+                        <div class="download-links">
+                            <a href="#" download>Download PLY</a>
+                        </div>
+                    </div>
+                    <div class="result-item" id="result-mask" style="display: none;">
+                        <span>Segmentation Mask</span>
+                        <div class="download-links">
+                            <a href="#" download>Download</a>
+                        </div>
+                    </div>
+                    <div class="result-objects" id="result-objects" style="display: none;">
+                        <h4>Individual Objects</h4>
+                        <div id="objects-list"></div>
+                    </div>
+                </div>
+
+                <!-- Mask Preview -->
+                <div class="mask-preview" id="mask-preview" style="display: none;">
+                    <h3>Segmentation Result</h3>
+                    <img id="mask-image" src="" alt="Segmentation mask">
+                </div>
+            </div>
+
+            <!-- 3D Preview Panel -->
+            <div class="panel">
+                <h2>3D Preview</h2>
+                <div class="viewer-container" id="viewer-container">
+                    <div class="viewer-placeholder" id="viewer-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <p>Generate a 3D model to view it here</p>
+                        <p style="font-size: 0.9em; margin-top: 5px;">Interactive 3D viewer - rotate, zoom, pan</p>
+                    </div>
+                    <canvas id="viewer-canvas"></canvas>
+                    <div class="loading-overlay" id="viewer-loading">
+                        <div class="spinner-large"></div>
+                        <span id="loading-text">Generating 3D model...</span>
+                    </div>
+                    <div class="viewer-info" id="viewer-info"></div>
+                    <div class="viewer-controls" id="viewer-controls">
+                        <button id="toggle-wireframe">Wireframe</button>
+                        <button id="reset-camera">Reset View</button>
+                        <button id="toggle-autorotate">Auto-Rotate</button>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; color: #666; font-size: 0.9em; text-align: center;">
+                    Drag to rotate | Scroll to zoom | Right-click to pan
+                </p>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by <a href="https://github.com/facebookresearch/sam3">SAM3</a> and <a href="https://github.com/facebookresearch/sam-3d-objects">SAM3D</a> from Meta AI</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // ===================================================================
+        // Three.js 3D Viewer
+        // ===================================================================
+
+        let scene, camera, renderer, controls, currentModel;
+        let isWireframe = false;
+
+        function initViewer() {
+            const container = document.getElementById('viewer-container');
+            const canvas = document.getElementById('viewer-canvas');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                60,
+                container.clientWidth / container.clientHeight,
+                0.01,
+                1000
+            );
+            camera.position.set(2, 1.5, 2);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1;
+
+            // Controls
+            controls = new OrbitControls(camera, canvas);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 20;
+            controls.target.set(0, 0, 0);
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 2.0;
+
+            // Lights - very bright setup for vertex-colored models
+            const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+            scene.add(ambientLight);
+
+            // Key light (main light) - very strong
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
+            directionalLight.position.set(5, 8, 5);
+            scene.add(directionalLight);
+
+            // Fill light (opposite side)
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight2.position.set(-5, 3, -5);
+            scene.add(directionalLight2);
+
+            // Bottom fill light
+            const directionalLight3 = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight3.position.set(0, -5, 0);
+            scene.add(directionalLight3);
+
+            // Front fill light
+            const directionalLight4 = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight4.position.set(0, 2, 8);
+            scene.add(directionalLight4);
+
+            // Back light for rim lighting effect
+            const directionalLight5 = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight5.position.set(0, 2, -8);
+            scene.add(directionalLight5);
+
+            // Hemisphere light for natural feel
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x888888, 1.5);
+            scene.add(hemisphereLight);
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(4, 20, 0x333333, 0x222222);
+            scene.add(gridHelper);
+
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+
+            // Animation loop
+            animate();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('viewer-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // OrbitControls handles auto-rotation internally, no manual rotation needed
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function loadGLBModel(url) {
+            const loader = new GLTFLoader();
+            const loadingEl = document.getElementById('viewer-loading');
+            const loadingText = document.getElementById('loading-text');
+
+            loadingText.textContent = 'Loading 3D model...';
+            loadingEl.classList.add('show');
+
+            loader.load(
+                url,
+                (gltf) => {
+                    // Remove previous model
+                    if (currentModel) {
+                        scene.remove(currentModel);
+                        currentModel.traverse((child) => {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(m => m.dispose());
+                                } else {
+                                    child.material.dispose();
+                                }
+                            }
+                        });
+                    }
+
+                    currentModel = gltf.scene;
+
+                    // Enhance materials for better vertex color display
+                    currentModel.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                            const hasVertexColors = child.geometry && child.geometry.attributes.color;
+
+                            // For vertex-colored meshes, use MeshBasicMaterial for full brightness
+                            // MeshBasicMaterial is unlit - it shows vertex colors at their actual values
+                            // without any lighting calculations that might darken them
+                            if (hasVertexColors) {
+                                const newMat = new THREE.MeshBasicMaterial({
+                                    vertexColors: true,
+                                    side: THREE.DoubleSide
+                                });
+                                child.material = newMat;
+                            } else {
+                                // For textured or plain materials, keep lighting-based material
+                                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                                materials.forEach(mat => {
+                                    if (mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial) {
+                                        mat.roughness = 0.5;
+                                        mat.metalness = 0.0;
+                                    }
+                                    mat.needsUpdate = true;
+                                });
+                            }
+                        }
+                    });
+
+                    // Center and scale model
+                    const box = new THREE.Box3().setFromObject(currentModel);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 2 / maxDim;
+                    currentModel.scale.multiplyScalar(scale);
+
+                    box.setFromObject(currentModel);
+                    box.getCenter(center);
+                    currentModel.position.sub(center);
+                    currentModel.position.y += size.y * scale / 2;
+
+                    scene.add(currentModel);
+
+                    // Show viewer - ensure proper display and controls are enabled
+                    document.getElementById('viewer-placeholder').style.display = 'none';
+                    const canvas = document.getElementById('viewer-canvas');
+                    canvas.style.display = 'block';
+                    canvas.classList.add('active');
+                    document.getElementById('viewer-controls').classList.add('show');
+                    loadingEl.classList.remove('show');
+
+                    // Ensure controls are enabled after loading
+                    controls.enabled = true;
+
+                    // Update info
+                    let vertexCount = 0;
+                    let faceCount = 0;
+                    currentModel.traverse((child) => {
+                        if (child.isMesh && child.geometry) {
+                            vertexCount += child.geometry.attributes.position?.count || 0;
+                            if (child.geometry.index) {
+                                faceCount += child.geometry.index.count / 3;
+                            }
+                        }
+                    });
+                    document.getElementById('viewer-info').textContent =
+                        `Vertices: ${vertexCount.toLocaleString()} | Faces: ${Math.round(faceCount).toLocaleString()}`;
+
+                    resetCamera();
+                },
+                (progress) => {
+                    if (progress.total > 0) {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        loadingText.textContent = `Loading: ${percent}%`;
+                    }
+                },
+                (error) => {
+                    console.error('Error loading model:', error);
+                    loadingEl.classList.remove('show');
+                    showStatus('Failed to load 3D model for preview. Download files to view externally.', 'error');
+                }
+            );
+        }
+
+        function resetCamera() {
+            camera.position.set(2, 1.5, 2);
+            camera.lookAt(0, 0.5, 0);
+            controls.target.set(0, 0.5, 0);
+            controls.update();
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (currentModel) {
+                currentModel.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.wireframe = isWireframe);
+                        } else {
+                            child.material.wireframe = isWireframe;
+                        }
+                    }
+                });
+            }
+            document.getElementById('toggle-wireframe').classList.toggle('active', isWireframe);
+        }
+
+        function toggleAutoRotate() {
+            controls.autoRotate = !controls.autoRotate;
+            document.getElementById('toggle-autorotate').classList.toggle('active', controls.autoRotate);
+        }
+
+        // Initialize viewer
+        initViewer();
+
+        // Viewer controls
+        document.getElementById('toggle-wireframe').addEventListener('click', toggleWireframe);
+        document.getElementById('reset-camera').addEventListener('click', resetCamera);
+        document.getElementById('toggle-autorotate').addEventListener('click', toggleAutoRotate);
+
+        // ===================================================================
+        // UI Handlers
+        // ===================================================================
+
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const statusEl = document.getElementById('status');
+        const resultsEl = document.getElementById('results');
+
+        let selectedFile = null;
+
+        // File upload handlers
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showStatus('Please select an image file', 'error');
+                return;
+            }
+
+            selectedFile = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadArea.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                uploadArea.classList.add('has-image');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showStatus(message, type) {
+            statusEl.textContent = message;
+            statusEl.className = `status show ${type}`;
+        }
+
+        // Generate button handler
+        generateBtn.addEventListener('click', async () => {
+            const textPrompt = document.getElementById('text-prompt').value.trim();
+            const seed = document.getElementById('seed').value || 42;
+            const maxObjects = Math.min(Math.max(1, parseInt(document.getElementById('max-objects').value) || 50), 100);
+
+            // Validation
+            if (!selectedFile) {
+                showStatus('Please select an image first', 'error');
+                return;
+            }
+
+            if (!textPrompt) {
+                showStatus('Please enter an object description', 'error');
+                return;
+            }
+
+            // Show loading state
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<div class="spinner"></div><span>Generating...</span>';
+            showStatus('Processing image with SAM3 and SAM3D... This may take 1-3 minutes.', 'info');
+            resultsEl.classList.remove('show');
+
+            // Show loading overlay on viewer
+            const loadingEl = document.getElementById('viewer-loading');
+            const loadingText = document.getElementById('loading-text');
+            loadingText.textContent = 'Generating 3D model...';
+            loadingEl.classList.add('show');
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+            formData.append('text_prompt', textPrompt);
+            formData.append('seed', seed);
+            formData.append('max_objects', maxObjects);
+
+            try {
+                const response = await fetch('/api/generate_3d', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Generation failed');
+                }
+
+                if (data.success) {
+                    // Show result summary with object count
+                    const numObjects = data.num_objects || 1;
+                    const objectText = numObjects === 1 ? '1 object' : `${numObjects} objects`;
+                    showStatus(
+                        `Success! Generated ${objectText} in ${data.elapsed_time?.toFixed(1) || '?'}s`,
+                        'success'
+                    );
+
+                    // Show results
+                    resultsEl.classList.add('show');
+
+                    // Show summary
+                    const summaryEl = document.getElementById('result-summary');
+                    if (numObjects > 1) {
+                        summaryEl.style.display = 'block';
+                        summaryEl.querySelector('span').textContent =
+                            `Found ${numObjects} "${textPrompt}" objects - combined into scene`;
+                    } else {
+                        summaryEl.style.display = 'none';
+                    }
+
+                    // GLB download (textured mesh)
+                    if (data.glb_url) {
+                        const glbResult = document.getElementById('result-glb');
+                        glbResult.style.display = 'flex';
+                        glbResult.querySelector('a').href = data.glb_url;
+
+                        // Load GLB in viewer
+                        loadGLBModel(data.glb_url);
+                    } else {
+                        loadingEl.classList.remove('show');
+                    }
+
+                    // OBJ download
+                    if (data.obj_url) {
+                        const objResult = document.getElementById('result-obj');
+                        objResult.style.display = 'flex';
+                        objResult.querySelector('a').href = data.obj_url;
+                    }
+
+                    // PLY download
+                    if (data.ply_url) {
+                        const plyResult = document.getElementById('result-ply');
+                        plyResult.style.display = 'flex';
+                        const plyLabel = numObjects > 1 ? 'Combined Scene (PLY)' : 'Gaussian Splatting (PLY)';
+                        plyResult.querySelector('span').textContent = plyLabel;
+                        plyResult.querySelector('a').href = data.ply_url;
+                    }
+
+                    // Mask download and preview
+                    if (data.mask_url) {
+                        const maskResult = document.getElementById('result-mask');
+                        maskResult.style.display = 'flex';
+                        const maskLabel = numObjects > 1 ? 'Combined Mask' : 'Segmentation Mask';
+                        maskResult.querySelector('span').textContent = maskLabel;
+                        maskResult.querySelector('a').href = data.mask_url;
+
+                        // Show mask preview
+                        const maskPreview = document.getElementById('mask-preview');
+                        const maskImage = document.getElementById('mask-image');
+                        maskImage.src = data.mask_url;
+                        maskPreview.style.display = 'block';
+                    }
+
+                    // Show individual objects (if multi-object)
+                    const objectsListEl = document.getElementById('objects-list');
+                    const resultObjectsEl = document.getElementById('result-objects');
+                    objectsListEl.innerHTML = '';
+
+                    if (data.objects && data.objects.length > 1) {
+                        resultObjectsEl.style.display = 'block';
+                        data.objects.forEach((obj, idx) => {
+                            const objDiv = document.createElement('div');
+                            objDiv.className = 'result-item';
+                            objDiv.style.marginBottom = '8px';
+
+                            let links = '';
+                            if (obj.glb_url) links += `<a href="${obj.glb_url}" download>GLB</a>`;
+                            if (obj.obj_url) links += `<a href="${obj.obj_url}" download>OBJ</a>`;
+                            if (obj.ply_url) links += `<a href="${obj.ply_url}" download>PLY</a>`;
+                            if (obj.mask_url) links += `<a href="${obj.mask_url}" download>Mask</a>`;
+
+                            objDiv.innerHTML = `
+                                <span>Object ${obj.index !== undefined ? obj.index + 1 : idx + 1}</span>
+                                <div class="download-links">${links}</div>
+                            `;
+                            objectsListEl.appendChild(objDiv);
+                        });
+                    } else {
+                        resultObjectsEl.style.display = 'none';
+                    }
+                } else {
+                    throw new Error(data.message || 'Generation failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                loadingEl.classList.remove('show');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span class="btn-text">Generate 3D Model</span>';
+            }
+        });
+    </script>
+</body>
+</html>

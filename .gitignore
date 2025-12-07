@@ -1,0 +1,49 @@
+# Container images (too large for git)
+*.sif
+
+# Apptainer cache
+.apptainer_cache/
+.apptainer_tmp/
+
+# Output directories
+webapp_outputs/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Cache directories
+.nvdiffrast_cache/
+.torch_extensions/
+.warp_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# HuggingFace token (keep private!)
+.huggingface/
+token
+
+# Model checkpoints (download separately)
+sam-3d-objects/checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Site-specific configurations (not tracked)
+docker/*_local.sbatch
+scripts/*_local.sh
