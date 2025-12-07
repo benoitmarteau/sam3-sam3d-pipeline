@@ -60,7 +60,7 @@ except ImportError as e:
 
 import torch
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -150,7 +150,7 @@ def get_example_inputs() -> Tuple[Image.Image, np.ndarray, np.ndarray]:
         raise FileNotFoundError(f"Example directory not found: {example_dir}")
 
     image_path = example_dir / "image.png"
-    image_pil = Image.open(image_path).convert('RGB')
+    image_pil = ImageOps.exif_transpose(Image.open(image_path)).convert('RGB')
     image_np = load_image(str(image_path))
     mask_np = load_single_mask(str(example_dir), index=14)
 
@@ -172,7 +172,7 @@ def load_image_and_mask(image_path: str, mask_path: str) -> Tuple[Image.Image, n
     Returns:
         Tuple of (image_pil, image_np, mask_np)
     """
-    image_pil = Image.open(image_path).convert('RGB')
+    image_pil = ImageOps.exif_transpose(Image.open(image_path)).convert('RGB')
     image_np = np.array(image_pil).astype(np.uint8)
 
     mask_img = Image.open(mask_path)
@@ -684,7 +684,8 @@ class SAM3SAM3DPipeline:
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image not found: {image_path}")
 
-        image_pil = Image.open(image_path).convert('RGB')
+        # Apply EXIF orientation to handle rotated images from phones/cameras
+        image_pil = ImageOps.exif_transpose(Image.open(image_path)).convert('RGB')
         image_np = np.array(image_pil).astype(np.uint8)
 
         # Save input image
@@ -980,7 +981,8 @@ class SAM3SAM3DPipeline:
             else:
                 if not os.path.exists(image_path):
                     raise FileNotFoundError(f"Image not found: {image_path}")
-                image_pil = Image.open(image_path).convert('RGB')
+                # Apply EXIF orientation to handle rotated images from phones/cameras
+                image_pil = ImageOps.exif_transpose(Image.open(image_path)).convert('RGB')
 
             image_np = np.array(image_pil).astype(np.uint8)
 
